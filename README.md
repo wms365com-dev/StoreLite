@@ -1,6 +1,6 @@
-# Shopify Lite Railway Starter
+# StoreLite
 
-A simple reusable store you can host on Railway.
+A reusable Shopify-lite starter you can clone for different stores and host on Railway.
 
 ## Features
 - Customer storefront
@@ -14,6 +14,31 @@ A simple reusable store you can host on Railway.
 - Amazon/affiliate URL support per product
 - Pending/paid order records in admin
 - Stock checks during checkout
+- Per-site branding through environment variables
+
+## Reusing For Different Sites
+
+For each new store, copy this project into a new folder or repository and start from:
+
+```bash
+.env.site.example
+```
+
+Main per-site settings:
+
+```env
+STORE_NAME=
+STORE_TAGLINE=
+STORE_DESCRIPTION=
+SUPPORT_EMAIL=
+LOGO_URL=
+HERO_IMAGE_URL=
+THEME_COLOR=
+ACCENT_COLOR=
+CURRENCY=
+```
+
+See `NEW_SITE_CHECKLIST.md` for the full new-site flow.
 
 ## Local Setup
 ```bash
@@ -36,8 +61,14 @@ Default admin comes from `.env`:
    - ADMIN_EMAIL
    - ADMIN_PASSWORD
    - STORE_NAME
+   - STORE_TAGLINE
+   - STORE_DESCRIPTION
+   - SUPPORT_EMAIL
+   - THEME_COLOR
+   - ACCENT_COLOR
    - CURRENCY
    - DATABASE_PATH=/data/store.db if using Railway volume mounted at /data
+   - UPLOADS_PATH=/data/uploads if using Railway volume mounted at /data
    - STRIPE_SECRET_KEY optional
    - SUCCESS_URL=https://your-domain.com/success
    - CANCEL_URL=https://your-domain.com/cart

@@ -13,12 +13,20 @@ const Stripe = require('stripe');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const STORE_NAME = process.env.STORE_NAME || 'Shop Lite';
+const STORE_TAGLINE = process.env.STORE_TAGLINE || 'Online store';
+const STORE_DESCRIPTION = process.env.STORE_DESCRIPTION || 'Sell products, manage inventory, collect Stripe checkout payments, and keep an admin order trail.';
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || '';
+const LOGO_URL = process.env.LOGO_URL || '';
+const HERO_IMAGE_URL = process.env.HERO_IMAGE_URL || '';
+const THEME_COLOR = normalizeHexColor(process.env.THEME_COLOR, '#10243e');
+const ACCENT_COLOR = normalizeHexColor(process.env.ACCENT_COLOR, '#1f7a5c');
 const CURRENCY = (process.env.CURRENCY || 'CAD').toUpperCase();
-const DB_PATH = process.env.DATABASE_PATH || './data/store.db';
+const DB_PATH = resolveProjectPath(process.env.DATABASE_PATH || './data/store.db');
+const UPLOADS_PATH = resolveProjectPath(process.env.UPLOADS_PATH || './uploads');
 const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-fs.mkdirSync('./uploads', { recursive: true });
+fs.mkdirSync(UPLOADS_PATH, { recursive: true });
 const db = new Database(DB_PATH);
 
 db.exec(`
@@ -81,11 +89,11 @@ app.use(session({
     secure: process.env.NODE_ENV === 'production'
   }
 }));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(path.resolve(UPLOADS_PATH)));
 app.use('/public', express.static(path.join(__dirname, 'public')));
 
 const storage = multer.diskStorage({
-  destination: (_, __, cb) => cb(null, 'uploads/'),
+  destination: (_, __, cb) => cb(null, UPLOADS_PATH),
   filename: (_, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     cb(null, `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ext}`);
@@ -108,6 +116,15 @@ function escapeHtml(value = '') {
     '"': '&quot;',
     "'": '&#39;'
   }[char]));
+}
+
+function normalizeHexColor(value, fallback) {
+  const color = String(value || '').trim();
+  return /^#[0-9a-fA-F]{6}$/.test(color) ? color : fallback;
+}
+
+function resolveProjectPath(value) {
+  return path.isAbsolute(value) ? value : path.join(__dirname, value);
 }
 
 function money(cents, currency = CURRENCY) {
@@ -137,7 +154,9 @@ function isSafeUrl(value) {
 }
 
 function layout(title, body) {
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><link rel="stylesheet" href="/public/style.css"></head><body><header><a class="brand" href="/">${escapeHtml(STORE_NAME)}</a><nav><a href="/">Shop</a><a href="/cart">Cart <span id="cartCount"></span></a><a href="/admin">Admin</a></nav></header><main>${body}</main><footer>&copy; ${new Date().getFullYear()} ${escapeHtml(STORE_NAME)}</footer><script src="/public/app.js"></script></body></html>`;
+  const logo = LOGO_URL ? `<img src="${escapeHtml(LOGO_URL)}" alt="">` : '';
+  const contact = SUPPORT_EMAIL ? `<a href="mailto:${escapeHtml(SUPPORT_EMAIL)}">${escapeHtml(SUPPORT_EMAIL)}</a>` : '';
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><meta name="description" content="${escapeHtml(STORE_DESCRIPTION)}"><link rel="stylesheet" href="/public/style.css"></head><body style="--theme:${THEME_COLOR};--accent:${ACCENT_COLOR}"><header><a class="brand" href="/">${logo}<span>${escapeHtml(STORE_NAME)}</span></a><nav><a href="/">Shop</a><a href="/cart">Cart <span id="cartCount"></span></a><a href="/admin">Admin</a></nav></header><main>${body}</main><footer><span>&copy; ${new Date().getFullYear()} ${escapeHtml(STORE_NAME)}</span>${contact}</footer><script src="/public/app.js"></script></body></html>`;
 }
 
 function requireAdmin(req, res, next) {
@@ -212,7 +231,8 @@ app.get('/', (req, res) => {
   const products = db.prepare(`SELECT * FROM products WHERE ${where.join(' AND ')} ORDER BY created_at DESC`).all(params);
   const categoryLinks = categories.map(({ category: name }) => `<a class="${name === category ? 'active' : ''}" href="/?category=${encodeURIComponent(name)}">${escapeHtml(name)}</a>`).join('');
   const cards = products.map(productCard).join('') || '<p class="empty">No products match this view.</p>';
-  res.send(layout(STORE_NAME, `<section class="hero"><div><p class="eyebrow">Online store</p><h1>${escapeHtml(STORE_NAME)}</h1><p>Sell products, manage inventory, collect Stripe checkout payments, and keep an admin order trail.</p></div><form class="search" method="get"><input name="q" value="${escapeHtml(q)}" placeholder="Search products"><button class="btn">Search</button></form></section><div class="tabs"><a class="${!category ? 'active' : ''}" href="/">All</a>${categoryLinks}</div><div class="grid">${cards}</div>`));
+  const heroMedia = HERO_IMAGE_URL ? `<img class="hero-image" src="${escapeHtml(HERO_IMAGE_URL)}" alt="">` : '';
+  res.send(layout(STORE_NAME, `<section class="hero"><div><p class="eyebrow">${escapeHtml(STORE_TAGLINE)}</p><h1>${escapeHtml(STORE_NAME)}</h1><p>${escapeHtml(STORE_DESCRIPTION)}</p></div>${heroMedia}<form class="search" method="get"><input name="q" value="${escapeHtml(q)}" placeholder="Search products"><button class="btn">Search</button></form></section><div class="tabs"><a class="${!category ? 'active' : ''}" href="/">All</a>${categoryLinks}</div><div class="grid">${cards}</div>`));
 });
 
 app.get('/products/:id', (req, res) => {
